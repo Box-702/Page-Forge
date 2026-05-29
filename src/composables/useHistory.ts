@@ -7,24 +7,24 @@ import { useLocalStorage } from './useLocalStorage'
  */
 export function useHistory() {
   const store = useBuilderStore()
-  const { save } = useLocalStorage()
+  const { saveDebounced } = useLocalStorage()
 
   /** 创建快照并写入存储 —— 每次操作前调用 */
   function pushSnapshot() {
     store.saveHistory()
-    save(store.components, store.pageSettings)
+    saveDebounced(store.components, store.pageSettings)
   }
 
   /** 撤销一步，同步写回 storage */
   function handleUndo() {
     store.undo()
-    save(store.components, store.pageSettings)
+    saveDebounced(store.components, store.pageSettings)
   }
 
   /** 重做一步，同步写回 storage */
   function handleRedo() {
     store.redo()
-    save(store.components, store.pageSettings)
+    saveDebounced(store.components, store.pageSettings)
   }
 
   /** 全局键盘监听 —— 挂到 document keydown */

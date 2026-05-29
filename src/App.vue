@@ -7,7 +7,7 @@ import { useLocalStorage } from './composables/useLocalStorage'
 
 const store = useBuilderStore()
 const { onKeydown } = useHistory()
-const { save, load } = useLocalStorage()
+const { saveDebounced, load } = useLocalStorage()
 
 // 启动时从 localStorage 恢复
 const saved = load()
@@ -18,14 +18,9 @@ store.saveHistory()
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
-// 自动保存：数据变化时 500ms 防抖写入 localStorage
-let timer: ReturnType<typeof setTimeout> | null = null
 watch(
   () => [store.components, store.pageSettings],
-  () => {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(() => save(store.components, store.pageSettings), 500)
-  },
+  () => saveDebounced(store.components, store.pageSettings),
   { deep: true }
 )
 </script>

@@ -1,5 +1,6 @@
 import type { PageComponent, PageSettings } from '@/types'
 import { getRowColumns, normalizeRowComponent } from './rowColumns'
+import { isSafeAssetUrl, isSafeLinkUrl } from './urlGuards'
 
 export interface ProjectIssue {
   level: 'error' | 'warning'
@@ -19,16 +20,41 @@ export function validateProject(components: PageComponent[], settings: PageSetti
   if (!settings.description?.trim()) {
     issues.push({ level: 'warning', title: '缺少页面描述', detail: '建议填写 80 到 160 字的页面描述。' })
   }
+  if (settings.ogImage && !isSafeAssetUrl(settings.ogImage)) {
+    issues.push({ level: 'error', title: '社交分享图地址存在风险', detail: '社交分享图只允许 http、https、相对路径或常见 base64 图片。' })
+  }
+  if (settings.faviconUrl && !isSafeAssetUrl(settings.faviconUrl)) {
+    issues.push({ level: 'error', title: 'Favicon 地址存在风险', detail: 'Favicon 只允许 http、https、相对路径或常见 base64 图片。' })
+  }
 
   walkComponents(components, (component) => {
     if (component.type === 'hero' && !component.content.title?.trim()) {
       issues.push({ level: 'error', title: 'Hero 缺少标题', detail: '首屏标题为空会明显降低页面可读性。' })
     }
-    if ((component.content.ctaText || '').trim() && !isValidLink(component.content.ctaLink || '#')) {
-      issues.push({ level: 'warning', title: '按钮链接可能无效', detail: `${component.type} 区块的按钮链接不是 URL、锚点或相对路径。` })
+    if ((component.content.ctaText || '').trim() && !isSafeLinkUrl(component.content.ctaLink || '#')) {
+      issues.push({ level: 'error', title: '按钮链接存在风险', detail: `${component.type} 区块的按钮链接只允许 http、https、mailto、tel、锚点或相对路径。` })
     }
-    if (component.content.imageUrl && !isValidAssetUrl(component.content.imageUrl)) {
-      issues.push({ level: 'warning', title: '图片地址可能无效', detail: `${component.type} 区块使用了无法识别的图片地址。` })
+    if (component.content.imageUrl && !isSafeAssetUrl(component.content.imageUrl)) {
+      issues.push({ level: 'error', title: '图片地址存在风险', detail: `${component.type} 区块的图片地址只允许 http、https、相对路径或常见 base64 图片。` })
+    }
+    if (component.styles.bgImage && !isSafeAssetUrl(component.styles.bgImage)) {
+      issues.push({ level: 'error', title: '背景图片地址存在风险', detail: `${component.type} 区块的背景图片地址只允许 http、https、相对路径或常见 base64 图片。` })
+    }
+    if (component.type === 'testimonials') {
+      const invalidAvatar = (component.content.testimonials || []).some((item: any) =>
+        item.avatarUrl && !isSafeAssetUrl(item.avatarUrl)
+      )
+      if (invalidAvatar) {
+        issues.push({ level: 'error', title: '头像地址存在风险', detail: 'Testimonials 区块的头像地址只允许 http、https、相对路径或常见 base64 图片。' })
+      }
+    }
+    if (component.type === 'footer') {
+      const invalidLink = (component.content.links || []).some((item: any) =>
+        item.url && !isSafeLinkUrl(item.url)
+      )
+      if (invalidLink) {
+        issues.push({ level: 'error', title: '页脚链接存在风险', detail: 'Footer 区块链接只允许 http、https、mailto、tel、锚点或相对路径。' })
+      }
     }
     if (component.type === 'row') {
       const emptyColumns = getRowColumns(normalizeRowComponent(component)).filter((column) => column.children.length === 0).length
@@ -51,12 +77,4 @@ function walkComponents(components: PageComponent[], visitor: (component: PageCo
       walkComponents(normalized.children, visitor)
     }
   })
-}
-
-function isValidLink(value: string): boolean {
-  return value.startsWith('#') || value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://') || value.startsWith('mailto:')
-}
-
-function isValidAssetUrl(value: string): boolean {
-  return value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/') || value.startsWith('data:image/')
 }

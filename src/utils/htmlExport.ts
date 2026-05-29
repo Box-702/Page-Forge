@@ -1,5 +1,6 @@
 import type { PageComponent, PageSettings } from '@/types'
 import { getRowColumns, normalizeRowComponent } from './rowColumns'
+import { safeAssetUrl, safeLinkUrl } from './urlGuards'
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
@@ -15,7 +16,8 @@ function boxStyle(s: Record<string, any>): string {
   if (s.paddingLeft) parts.push(`padding-left:${s.paddingLeft}`)
   if (s.paddingRight) parts.push(`padding-right:${s.paddingRight}`)
   if (s.borderRadius) parts.push(`border-radius:${s.borderRadius}`)
-  if (s.bgImage) parts.push(`background-image:url(${s.bgImage});background-size:cover;background-position:center`)
+  const bgImage = safeAssetUrl(s.bgImage)
+  if (bgImage) parts.push(`background-image:url("${bgImage.replace(/"/g, '%22')}");background-size:cover;background-position:center`)
   return parts.join(';')
 }
 
@@ -42,8 +44,9 @@ function ctaClass(variant: string | undefined, context: 'hero' | 'cta' = 'hero')
 }
 
 function renderHero(c: Record<string, any>, s: Record<string, any>): string {
-  const btn = c.ctaText ? `<a href="${esc(c.ctaLink || '#')}" class="inline-block px-8 py-3 font-medium rounded-lg ${ctaClass(c.ctaVariant)}">${esc(c.ctaText)}</a>` : ''
-  const img = c.imageUrl ? `<div class="flex-1 flex justify-center"><img src="${esc(c.imageUrl)}" alt="Hero" class="max-w-full h-auto rounded-lg shadow-lg"></div>` : ''
+  const btn = c.ctaText ? `<a href="${esc(safeLinkUrl(c.ctaLink))}" class="inline-block px-8 py-3 font-medium rounded-lg ${ctaClass(c.ctaVariant)}">${esc(c.ctaText)}</a>` : ''
+  const imageUrl = safeAssetUrl(c.imageUrl)
+  const img = imageUrl ? `<div class="flex-1 flex justify-center"><img src="${esc(imageUrl)}" alt="Hero" class="max-w-full h-auto rounded-lg shadow-lg"></div>` : ''
   return `
 <section style="${boxStyle(s)}" class="${twClass(s)}">
   <div class="max-w-6xl mx-auto px-4">
@@ -105,20 +108,23 @@ function renderCTA(c: Record<string, any>, s: Record<string, any>): string {
   <div class="max-w-4xl mx-auto px-4 text-center">
     <h2 class="font-bold mb-4" style="${titleStyle(s)}">${esc(c.title || '')}</h2>
     <p class="mb-8 opacity-90" style="${bodyStyle(s)}">${esc(c.subtitle || '')}</p>
-    ${c.ctaText ? `<a href="${esc(c.ctaLink || '#')}" class="inline-block px-8 py-3 font-medium rounded-lg ${ctaClass(c.ctaVariant, 'cta')}">${esc(c.ctaText)}</a>` : ''}
+    ${c.ctaText ? `<a href="${esc(safeLinkUrl(c.ctaLink))}" class="inline-block px-8 py-3 font-medium rounded-lg ${ctaClass(c.ctaVariant, 'cta')}">${esc(c.ctaText)}</a>` : ''}
   </div>
 </section>`
 }
 
 function renderTestimonials(c: Record<string, any>, s: Record<string, any>): string {
-  const cards = (c.testimonials || []).map((t: any) => `
+  const cards = (c.testimonials || []).map((t: any) => {
+    const avatarUrl = safeAssetUrl(t.avatarUrl)
+    return `
     <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
       <p class="text-gray-700 mb-4 italic">"${esc(t.quote || '')}"</p>
       <div class="flex items-center gap-3">
-        ${t.avatarUrl ? `<img src="${esc(t.avatarUrl)}" class="w-10 h-10 rounded-full object-cover" alt="avatar">` : '<div class="w-10 h-10 rounded-full bg-gray-300"></div>'}
+        ${avatarUrl ? `<img src="${esc(avatarUrl)}" class="w-10 h-10 rounded-full object-cover" alt="avatar">` : '<div class="w-10 h-10 rounded-full bg-gray-300"></div>'}
         <div><p class="text-sm font-semibold text-gray-900">${esc(t.name || '')}</p><p class="text-xs text-gray-500">${esc(t.title || '')}</p></div>
       </div>
-    </div>`).join('')
+    </div>`
+  }).join('')
   return `
 <section style="${boxStyle(s)}" class="${twClass(s)}">
   <div class="max-w-6xl mx-auto px-4">
@@ -146,7 +152,7 @@ function renderFaq(c: Record<string, any>, s: Record<string, any>): string {
 }
 
 function renderFooter(c: Record<string, any>, s: Record<string, any>): string {
-  const links = (c.links || []).map((l: any) => `<a href="${esc(l.url || '#')}" class="text-sm opacity-70 hover:opacity-100">${esc(l.title || '')}</a>`).join('')
+  const links = (c.links || []).map((l: any) => `<a href="${esc(safeLinkUrl(l.url))}" class="text-sm opacity-70 hover:opacity-100">${esc(l.title || '')}</a>`).join('')
   return `
 <footer style="${boxStyle(s)}" class="${twClass(s)}">
   <div class="max-w-6xl mx-auto px-4">
@@ -192,6 +198,8 @@ function renderComponent(comp: PageComponent): string {
 
 export function buildHTML(components: PageComponent[], pageSettings: PageSettings): string {
   const body = components.map(renderComponent).join('\n')
+  const ogImage = safeAssetUrl(pageSettings.ogImage)
+  const faviconUrl = safeAssetUrl(pageSettings.faviconUrl)
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -201,8 +209,8 @@ export function buildHTML(components: PageComponent[], pageSettings: PageSetting
   <meta name="description" content="${esc(pageSettings.description || '')}">
   <meta property="og:title" content="${esc(pageSettings.title || 'Landing Page')}">
   <meta property="og:description" content="${esc(pageSettings.description || '')}">
-  ${pageSettings.ogImage ? `<meta property="og:image" content="${esc(pageSettings.ogImage)}">` : ''}
-  ${pageSettings.faviconUrl ? `<link rel="icon" href="${esc(pageSettings.faviconUrl)}">` : ''}
+  ${ogImage ? `<meta property="og:image" content="${esc(ogImage)}">` : ''}
+  ${faviconUrl ? `<link rel="icon" href="${esc(faviconUrl)}">` : ''}
   <script src="https://cdn.tailwindcss.com"><\/script>
   <style>
     :root {
