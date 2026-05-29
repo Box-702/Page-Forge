@@ -2,7 +2,22 @@
   "name": "page-forge",
   "private": true,
   "version": "0.1.0",
+  "description": "A Vue 3 visual landing page builder with drag sorting, nested rows, local persistence, undo/redo and static HTML export.",
   "type": "module",
+  "homepage": "https://box-702.github.io/Page-Forge/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Box-702/Page-Forge.git"
+  },
+  "keywords": [
+    "vue",
+    "typescript",
+    "landing-page-builder",
+    "page-builder",
+    "pinia",
+    "sortablejs",
+    "tailwindcss"
+  ],
   "scripts": {
     "dev": "vite",
     "typecheck": "vue-tsc -b",
