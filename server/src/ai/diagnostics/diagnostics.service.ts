@@ -162,6 +162,23 @@ export class DiagnosticsService {
     // No more FAQ H1 false positive: FaqBlock uses h2 after fix.
     // Diagnostics should only flag if a block type is known to use h1 incorrectly.
     // With the FaqBlock h1→h2 fix, this check is no longer needed.
+    // We still check that features/cta/testimonials/faq blocks are all using h2.
+    for (const c of components) {
+      if (c.type === 'features' || c.type === 'cta' || c.type === 'testimonials' || c.type === 'faq') {
+        const title = c.content?.title || ''
+        if (title && title.length > 80) {
+          issues.push({
+            severity: 'low',
+            category: 'heading',
+            blockId: c.id,
+            blockType: c.type,
+            message: `${c.type} 标题过长(${title.length} 字符),作为 H2 建议控制在 40 字符以内。`,
+            fix: '缩短标题或拆成多行',
+            autoFixable: false,
+          })
+        }
+      }
+    }
   }
 
   private checkImages(components: Array<{ id: string; type: string; content?: any; styles?: any }>, issues: DiagnosticIssue[]) {

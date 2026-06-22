@@ -1,9 +1,15 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import type { ImageProxyDto, StabilityResponse } from './ai.dto'
+import type { ImageProxyDto } from './ai.dto'
 
 const STABILITY_URL =
-  'https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image'
+  'https://api.stability.ai/v2beta/stable-image/generate/sd3'
+
+interface StabilityV2Response {
+  image?: string
+  finish_reason?: string
+  seed?: number
+}
 
 @Injectable()
 export class StabilityService {
@@ -28,14 +34,14 @@ export class StabilityService {
       )
     }
 
-    const body = {
-      text_prompts: [{ text: dto.prompt, weight: 1 }],
-      cfg_scale: dto.cfg_scale ?? 7,
-      height: dto.height ?? 1024,
-      width: dto.width ?? 1024,
-      steps: dto.steps ?? 30,
-      samples: 1,
-    }
+    // SD3 API uses multipart form data
+    const formData = new FormData()
+    formData.append('prompt', dto.prompt)
+    formData.append('output_format', 'png')
+    if (dto.width) formData.append('width', String(dto.width))
+    if (dto.height) formData.append('height', String(dto.height))
+    if (dto.cfg_scale) formData.append('cfg_scale', String(dto.cfg_scale))
+    if (dto.steps) formData.append('steps', String(dto.steps))
 
     let res: Response
     try {
@@ -43,10 +49,9 @@ export class StabilityService {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey!}`,
-          'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify(body),
+        body: formData,
       })
     } catch (err) {
       this.logger.error('Network error reaching Stability', err)
@@ -63,11 +68,10 @@ export class StabilityService {
       )
     }
 
-    const data = (await res.json()) as StabilityResponse
-    const first = data.artifacts?.[0]
-    if (!first?.base64) {
-      throw new ServiceUnavailableException('Stability API returned no image artifacts')
+    const data = (await res.json()) as StabilityV2Response
+    if (!data?.image) {
+      throw new ServiceUnavailableException('Stability API returned no image data')
     }
-    return { dataUrl: `data:image/png;base64,${first.base64}` }
+    return { dataUrl: `data:image/png;base64,${data.image}` }
   }
 }

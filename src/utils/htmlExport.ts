@@ -22,6 +22,9 @@ function boxStyle(s: Record<string, any>): string {
       parts.push('background-position:center')
     }
   }
+  if (s.bgOverlay) {
+    parts.push(`box-shadow:inset 0 0 0 1000px ${s.bgOverlay}`)
+  }
   if (!s.bgGradient && s.bgColor) parts.push(`background-color:${s.bgColor}`)
   if (s.bgAttachment === 'fixed') parts.push('background-attachment:fixed')
   if (s.textColor) parts.push(`color:${s.textColor}`)
@@ -157,7 +160,7 @@ function renderFeatures(c: Record<string, any>, s: Record<string, any>): string 
 function renderPricing(c: Record<string, any>, s: Record<string, any>): string {
   const cards = (c.plans || []).map((p: any) => {
     const hl = p.highlighted ? 'bg-blue-600 text-white border-blue-600 shadow-xl' : 'bg-white text-gray-900 border-gray-200 shadow-sm'
-    const feats = (p.features || []).map((f: string) => `<li class="flex items-center gap-2 text-sm ${p.highlighted ? 'text-blue-50' : 'text-gray-600'}"><span>: </span> ${esc(f)}</li>`).join('')
+    const feats = (p.features || []).map((f: string) => `<li class="flex items-center gap-2 text-sm ${p.highlighted ? 'text-blue-50' : 'text-gray-600'}"><span>✓</span> ${esc(f)}</li>`).join('')
     return `
     <div class="rounded-xl p-8 border ${hl}">
       <h3 class="text-xl font-bold mb-2">${esc(p.name || '')}</h3>

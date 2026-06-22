@@ -30,15 +30,6 @@ export class ImageProxyDto {
   cfg_scale?: number
 }
 
-export interface StabilityArtifact {
-  base64: string
-  finishReason: string
-}
-
-export interface StabilityResponse {
-  artifacts: StabilityArtifact[]
-}
-
 export interface ClaudeContentBlock {
   type: 'text' | 'tool_use'
   text?: string

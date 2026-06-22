@@ -33,6 +33,7 @@ export function useBlockStyle(component: Ref<PageComponent>): ComputedRef<BlockS
       out.backgroundColor = s.bgColor
     }
     if (s.bgAttachment === 'fixed') out.backgroundAttachment = 'fixed'
+    if (s.bgOverlay) out.boxShadow = `inset 0 0 0 1000px ${s.bgOverlay}`
     if (s.decoration && s.decoration !== 'none') out.position = 'relative'
     return out
   })

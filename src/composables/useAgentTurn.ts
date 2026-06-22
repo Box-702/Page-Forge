@@ -137,17 +137,18 @@ export function useAgentTurn() {
       } else if (t === 'text_delta' && evt.text) {
         agent.appendAssistantDelta(assistantId, evt.text)
       } else if (t === 'tool_call') {
-        accumulatedToolCalls.push({
+        const toolCall = {
           id: evt.id,
           name: evt.name,
           input: evt.input,
-        })
+        }
+        accumulatedToolCalls.push(toolCall)
         if (evt.name === 'generate_blocks' && evt.input) {
           lastRationale = evt.input.rationale || ''
           replaceExisting = !!evt.input.replaceExisting
           generatedBlocks = Array.isArray(evt.input.blocks) ? evt.input.blocks : []
         }
-      } else if (t === 'tool_result' && !evt.ok) {
+      } else if (t === 'tool_result' && evt.ok === false) {
         agent.appendAssistantDelta(
           assistantId,
           `\n\n[工具 ${evt.toolName} 执行失败: ${evt.error ?? '未知错误'}]`,

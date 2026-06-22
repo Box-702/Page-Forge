@@ -22,6 +22,7 @@ function persist(id: string | null) {
 export function useSession() {
   async function newSession(): Promise<string> {
     const res = await fetch('/api/agent/session/new', { method: 'POST' })
+    if (!res.ok) throw new Error('无法创建会话')
     const data = await res.json() as { ok: boolean; sessionId: string }
     if (!data.ok) throw new Error('无法创建会话')
     currentSessionId.value = data.sessionId
@@ -33,6 +34,7 @@ export function useSession() {
     if (!currentSessionId.value) return false
     try {
       const res = await fetch(`/api/agent/session?id=${encodeURIComponent(currentSessionId.value)}`)
+      if (!res.ok) return false
       const data = await res.json() as { ok: boolean }
       return data.ok
     } catch {

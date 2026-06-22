@@ -73,15 +73,16 @@ A Vue 3 visual landing page builder with drag sorting, nested rows, local persis
 │   │       ├── HeroEditor.vue, FeaturesEditor.vue, etc.
 │   ├── data/
 │   │   ├── templates.ts              # Predefined page templates
-│   │   ├── decorationRegistry.ts     # Decoration SVG registry (5 categories, 26 assets)
+│   │   ├── decorationRegistry.ts     # Decoration SVG registry (6 categories, 14 assets)
 │   │   └── visualPresets.ts          # Gradient presets
 │   ├── assets/decorations/           # SVG decoration files
-│   │   ├── blobs/ (6), waves/ (6), mesh/ (6), noise/ (2), squiggles/ (6)
+│   │   ├── blobs/ (4), waves/ (2), mesh/ (4), noise/ (2), squiggles/ (2)
 │   └── utils/
-│       ├── treeHelpers.ts            # Recursive find/update/remove/clone
+│       ├── treeHelpers.ts            # Recursive find/update/remove/clone (row-aware, no redundant normalization)
 │       ├── rowColumns.ts             # Row column normalization
 │       ├── defaults.ts               # Default content factories per block type
-│       └── htmlExport.ts             # Static HTML generation (includes decorations inline)
+│       ├── htmlExport.ts             # Static HTML generation (includes decorations inline, bgOverlay / urlGuards)
+│       └── urlGuards.ts              # URL security validation for export
 │
 ├── server/                           # NestJS backend (AI proxy + agent)
 │   ├── src/

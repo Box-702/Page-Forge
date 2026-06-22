@@ -21,8 +21,7 @@ export function useExport() {
 
   function downloadProject(components: PageComponent[], pageSettings: PageSettings) {
     const data: ProjectData = { version: 1, components, pageSettings }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' })
-    downloadBlob(blob, 'page-forge-project.json')
+    downloadJSON(data, 'page-forge-project.json')
   }
 
   async function readProjectFile(file: File): Promise<ProjectData> {
@@ -34,7 +33,8 @@ export function useExport() {
     return { version: 1, components: data.components, pageSettings: data.pageSettings }
   }
 
-  function downloadBlob(blob: Blob, filename: string) {
+  function downloadJSON(data: unknown, filename: string) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

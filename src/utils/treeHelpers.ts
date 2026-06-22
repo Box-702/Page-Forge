@@ -3,10 +3,9 @@ import { getRowColumns, normalizeRowComponent } from './rowColumns'
 
 export function findComponent(components: PageComponent[], id: string): PageComponent | null {
   for (const component of components) {
-    const normalized = normalizeRowComponent(component)
-    if (normalized.id === id) return normalized
+    if (component.id === id) return component
 
-    for (const child of getNestedChildren(normalized)) {
+    for (const child of getNestedChildren(component)) {
       const found = findComponent([child], id)
       if (found) return found
     }
@@ -26,9 +25,8 @@ export function updateInTree(
   patch: Partial<PageComponent>
 ): PageComponent[] {
   return components.map((component) => {
-    const normalized = normalizeRowComponent(component)
-    if (normalized.id === id) return { ...normalized, ...patch }
-    return mapNestedChildren(normalized, (children) => updateInTree(children, id, patch))
+    if (component.id === id) return { ...component, ...patch }
+    return mapNestedChildren(component, (children) => updateInTree(children, id, patch))
   })
 }
 
@@ -60,7 +58,14 @@ export function cloneComponentWithNewIds(component: PageComponent): PageComponen
 
 function getNestedChildren(component: PageComponent): PageComponent[] {
   if (component.type === 'row') {
-    return getRowColumns(component).flatMap((column) => column.children)
+    const rowChildren: PageComponent[] = []
+    const columns = component.content?.columns
+    if (Array.isArray(columns)) {
+      for (const column of columns) {
+        if (Array.isArray(column.children)) rowChildren.push(...column.children)
+      }
+    }
+    return rowChildren
   }
   return component.children || []
 }
@@ -69,19 +74,15 @@ function mapNestedChildren(
   component: PageComponent,
   mapper: (children: PageComponent[]) => PageComponent[]
 ): PageComponent {
-  const normalized = normalizeRowComponent(component)
-  if (normalized.type === 'row') {
-    const columns: RowColumn[] = getRowColumns(normalized).map((column) => ({
+  if (component.type === 'row') {
+    const raw = component.content?.columns as RowColumn[] | undefined
+    const columns = (raw || []).map((column) => ({
       ...column,
-      children: mapper(column.children),
+      children: mapper(column.children || []),
     }))
-    return {
-      ...normalized,
-      children: undefined,
-      content: { ...normalized.content, columns, columnCount: columns.length },
-    }
+    return { ...component, children: undefined, content: { ...component.content, columns } }
   }
 
-  if (!normalized.children) return normalized
-  return { ...normalized, children: mapper(normalized.children) }
+  if (!component.children) return component
+  return { ...component, children: mapper(component.children) }
 }
