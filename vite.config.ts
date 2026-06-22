@@ -11,4 +11,24 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: env?.VITE_API_TARGET ?? 'http://localhost:3000',
+        changeOrigin: true,
+        ws: false,
+        configure(proxy) {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('X-Accel-Buffering', 'no')
+            proxyReq.setHeader('Cache-Control', 'no-cache')
+          })
+          proxy.on('proxyRes', (proxyRes) => {
+            proxyRes.headers['X-Accel-Buffering'] = 'no'
+            proxyRes.headers['Cache-Control'] = 'no-cache, no-transform'
+          })
+        },
+      },
+    },
+  },
 })

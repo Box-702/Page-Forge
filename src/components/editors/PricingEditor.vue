@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useEditor } from '@/composables/useEditor'
+import AIRewriteButton from '../builder/AIRewriteButton.vue'
 
 const { content, set } = useEditor()
 
@@ -53,6 +54,10 @@ function updatePlanFeature(planIndex: number, featIndex: number, value: string) 
 
 <template>
   <div class="space-y-4">
+    <div class="flex items-center justify-between -mb-2">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">文案</p>
+      <AIRewriteButton />
+    </div>
     <div>
       <label class="text-xs font-medium text-gray-500 block mb-1">标题</label>
       <input class="w-full border rounded-lg px-3 py-2 text-sm"

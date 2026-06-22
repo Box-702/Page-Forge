@@ -1,11 +1,34 @@
 <script setup lang="ts">
 import { useEditor } from '@/composables/useEditor'
+import { useBuilderStore } from '@/stores/builder'
+import { useAIStore } from '@/stores/ai'
 
 const { content, set } = useEditor()
+const builder = useBuilderStore()
+const ai = useAIStore()
+
+function openAIRewrite() {
+  builder.aiRewriteTargetId = builder.selectedId
+  builder.showAIRewriteModal = true
+}
+
+function openAIImage() {
+  builder.aiImageTargetField = 'imageUrl'
+  builder.showAIImageModal = true
+}
 </script>
 
 <template>
   <div class="space-y-4">
+    <div class="flex items-center justify-between -mb-2">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">文案</p>
+      <button
+        class="text-xs px-2 py-1 rounded text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-40"
+        :disabled="!ai.anthropicReady"
+        :title="ai.anthropicReady ? '用 AI 改写' : '请先配置 Claude key'"
+        @click="openAIRewrite"
+      >✨ AI 改写</button>
+    </div>
     <div>
       <label class="mb-1 block text-xs font-medium text-gray-500">大标题</label>
       <input class="w-full rounded-lg border px-3 py-2 text-sm" :value="content.title" @input="set('title', ($event.target as HTMLInputElement).value)" />
@@ -40,7 +63,15 @@ const { content, set } = useEditor()
       </select>
     </div>
     <div>
-      <label class="mb-1 block text-xs font-medium text-gray-500">配图 URL</label>
+      <div class="flex items-center justify-between mb-1">
+        <label class="text-xs font-medium text-gray-500">配图 URL</label>
+        <button
+          class="text-xs px-2 py-1 rounded text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-40"
+          :disabled="!ai.stabilityReady"
+          :title="ai.stabilityReady ? 'AI 生图' : '请先在 AI 设置中配置 Stability key'"
+          @click="openAIImage"
+        >✨ AI 生图</button>
+      </div>
       <input class="w-full rounded-lg border px-3 py-2 text-sm" :value="content.imageUrl" @input="set('imageUrl', ($event.target as HTMLInputElement).value)" placeholder="https://..." />
       <img v-if="content.imageUrl" :src="content.imageUrl" class="mt-2 aspect-video w-full rounded-lg border object-cover" alt="配图预览" />
     </div>

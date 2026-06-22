@@ -7,6 +7,11 @@ import AddBlockModal from './AddBlockModal.vue'
 import TemplateModal from './TemplateModal.vue'
 import ExportCheckPanel from './ExportCheckPanel.vue'
 import ProjectManagerModal from './ProjectManagerModal.vue'
+import AISettingsModal from './AISettingsModal.vue'
+import AIPageModal from './AIPageModal.vue'
+import AIRewriteModal from './AIRewriteModal.vue'
+import AIImageModal from './AIImageModal.vue'
+import AgentPanel from './AgentPanel.vue'
 import { useBuilderStore } from '@/stores/builder'
 
 const store = useBuilderStore()
@@ -36,10 +41,17 @@ const sidebarOpen = ref(true)
       </Transition>
     </div>
 
+    <!-- 右侧 agent 面板(始终可见,可由按钮折叠) -->
+    <AgentPanel v-if="store.showAgentPanel" />
+
     <AddBlockModal v-if="store.showAddModal && !store.isPreview" />
     <TemplateModal v-if="store.showTemplateModal && !store.isPreview" />
     <ExportCheckPanel v-if="store.showCheckPanel" />
     <ProjectManagerModal v-if="store.showProjectModal && !store.isPreview" />
+    <AISettingsModal v-if="store.showAISettingsModal" />
+    <AIPageModal v-if="store.showAIPageModal" />
+    <AIRewriteModal v-if="store.showAIRewriteModal && store.aiRewriteTargetId" />
+    <AIImageModal v-if="store.showAIImageModal && store.aiImageTargetField" />
   </div>
 </template>
 

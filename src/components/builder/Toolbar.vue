@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useBuilderStore } from '@/stores/builder'
+import { useAIStore } from '@/stores/ai'
 import { useExport } from '@/composables/useExport'
 import { useHistory } from '@/composables/useHistory'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 
 const store = useBuilderStore()
+const ai = useAIStore()
 const { downloadHTML, downloadProject, readProjectFile } = useExport()
 const { handleUndo, handleRedo } = useHistory()
 const { save } = useLocalStorage()
@@ -85,6 +87,27 @@ async function onImport(event: Event) {
         @click="store.showTemplateModal = true"
       >
         模板
+      </button>
+
+      <button
+        class="rounded px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 disabled:opacity-40"
+        :disabled="!ai.anthropicReady"
+        :title="ai.anthropicReady ? '打开 AI Agent 面板(多轮对话)' : '后端 Claude 未就绪,请打开 AI 设置查看'"
+        @click="store.showAgentPanel = !store.showAgentPanel"
+      >
+        ✨ Agent
+      </button>
+
+      <button
+        class="rounded px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+        :title="ai.backendReachable ? (ai.anthropicReady ? '后端 Claude 已就绪' : '后端可达,但 Claude 未配置') : '后端不可达'"
+        @click="store.showAISettingsModal = true"
+      >
+        AI 设置
+        <span
+          class="ml-1 inline-block w-2 h-2 rounded-full"
+          :class="!ai.backendReachable ? 'bg-red-500' : ai.anthropicReady ? 'bg-green-500' : 'bg-yellow-500'"
+        ></span>
       </button>
       <button
         class="rounded px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"

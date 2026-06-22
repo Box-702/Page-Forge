@@ -2,10 +2,12 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import BuilderLayout from './components/builder/BuilderLayout.vue'
 import { useBuilderStore } from './stores/builder'
+import { useAIStore } from './stores/ai'
 import { useHistory } from './composables/useHistory'
 import { useLocalStorage } from './composables/useLocalStorage'
 
 const store = useBuilderStore()
+const ai = useAIStore()
 const { onKeydown } = useHistory()
 const { saveDebounced, load } = useLocalStorage()
 
@@ -13,6 +15,9 @@ const { saveDebounced, load } = useLocalStorage()
 const saved = load()
 if (saved) store.loadFromStorage(saved)
 store.saveHistory()
+
+// 启动时拉一次后端 AI 健康状态
+ai.refresh()
 
 // 全局键盘快捷键
 onMounted(() => document.addEventListener('keydown', onKeydown))
