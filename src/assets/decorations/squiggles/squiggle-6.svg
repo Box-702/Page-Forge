@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+  <path d="M30,60 L60,30 L90,60 L60,90 Z" opacity="0.7"/>
+  <path d="M200,80 L230,50 L260,80 L230,110 Z"/>
+  <path d="M80,200 L110,170 L140,200 L110,230 Z" opacity="0.5"/>
+  <line x1="20" y1="160" x2="80" y2="160" opacity="0.6"/>
+  <line x1="160" y1="200" x2="280" y2="200" opacity="0.4"/>
+</svg>

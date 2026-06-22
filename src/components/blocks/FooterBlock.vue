@@ -1,35 +1,27 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, toRef } from 'vue'
 import type { PageComponent } from '@/types'
 import { useBuilderStore } from '@/stores/builder'
 import { useInlineContent } from '@/composables/useInlineContent'
+import { useBlockStyle, animationClass } from '@/composables/useBlockStyle'
 import InlineText from '../builder/InlineText.vue'
+import BlockDecoration from '../builder/BlockDecoration.vue'
 
 const props = defineProps<{ component: PageComponent }>()
 const store = useBuilderStore()
 const { updateField, updateArrayItem, commitInlineEdit } = useInlineContent(() => props.component)
 const s = computed(() => props.component.styles)
+const boxStyle = useBlockStyle(toRef(props, 'component'))
+const animClass = computed(() => animationClass(s.value.animation))
 const c = computed(() => props.component.content as {
   companyName: string; description: string; copyright: string
   links: { id: string; title: string; url: string }[]
 })
-
-const boxStyle = computed(() => ({
-  backgroundColor: s.value.bgColor || undefined,
-  color: s.value.textColor || undefined,
-  paddingTop: s.value.paddingTop || undefined,
-  paddingBottom: s.value.paddingBottom || undefined,
-  paddingLeft: s.value.paddingLeft || undefined,
-  paddingRight: s.value.paddingRight || undefined,
-  backgroundImage: s.value.bgImage ? `url(${s.value.bgImage})` : undefined,
-  backgroundSize: s.value.bgImage ? 'cover' : undefined,
-  backgroundPosition: s.value.bgImage ? 'center' : undefined,
-  borderRadius: s.value.borderRadius || undefined,
-}))
 </script>
 
 <template>
-  <footer :style="boxStyle" :class="[s.textAlign, s.shadow, s.maxWidth]">
+  <footer :style="boxStyle" :class="[s.textAlign, s.shadow, s.maxWidth, animClass]">
+    <BlockDecoration :variant="s.decoration" />
     <div class="max-w-6xl mx-auto px-4">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
         <div class="md:col-span-1">

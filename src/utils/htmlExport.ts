@@ -1,24 +1,97 @@
 import type { PageComponent, PageSettings } from '@/types'
 import { getRowColumns, normalizeRowComponent } from './rowColumns'
 import { safeAssetUrl, safeLinkUrl } from './urlGuards'
+import { findDecoration } from '@/data/decorationRegistry'
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
-/** 行内 style 字符串（颜色/间距/圆角） */
+/** 行内 style 字符串(颜色/间距/圆角) */
 function boxStyle(s: Record<string, any>): string {
   const parts: string[] = []
-  if (s.bgColor) parts.push(`background-color:${s.bgColor}`)
+  if (s.bgGradient) {
+    parts.push(`background-image:${s.bgGradient}`)
+    parts.push('background-size:cover')
+    parts.push('background-position:center')
+  } else if (s.bgImage) {
+    const bgImage = safeAssetUrl(s.bgImage)
+    if (bgImage) {
+      parts.push(`background-image:url("${bgImage.replace(/"/g, '%22')}")`)
+      parts.push('background-size:cover')
+      parts.push('background-position:center')
+    }
+  }
+  if (!s.bgGradient && s.bgColor) parts.push(`background-color:${s.bgColor}`)
+  if (s.bgAttachment === 'fixed') parts.push('background-attachment:fixed')
   if (s.textColor) parts.push(`color:${s.textColor}`)
   if (s.paddingTop) parts.push(`padding-top:${s.paddingTop}`)
   if (s.paddingBottom) parts.push(`padding-bottom:${s.paddingBottom}`)
   if (s.paddingLeft) parts.push(`padding-left:${s.paddingLeft}`)
   if (s.paddingRight) parts.push(`padding-right:${s.paddingRight}`)
   if (s.borderRadius) parts.push(`border-radius:${s.borderRadius}`)
-  const bgImage = safeAssetUrl(s.bgImage)
-  if (bgImage) parts.push(`background-image:url("${bgImage.replace(/"/g, '%22')}");background-size:cover;background-position:center`)
+  if (s.decoration && s.decoration !== 'none') parts.push('position:relative;overflow:hidden')
   return parts.join(';')
+}
+
+function animationClass(s: Record<string, any>): string {
+  return s.animation && s.animation !== 'none' ? `pf-${s.animation}` : ''
+}
+
+function decorationHtml(s: Record<string, any>): string {
+  const asset = findDecoration(s.decoration)
+  if (!asset) return ''
+  const wrapperStyle = `position:absolute;${cssPosition(asset.position)};${cssSize(asset.size)};opacity:${asset.opacity};pointer-events:none;overflow:hidden;`
+  const color = asset.colorClass ? cssColorFromClass(asset.colorClass) : 'currentColor'
+  const innerStyle = `width:100%;height:100%;color:${color};`
+  return `<div style="${wrapperStyle}" aria-hidden="true"><div style="${innerStyle}">${asset.raw}</div></div>`
+}
+
+function cssPosition(tw: string): string {
+  const NEG = (n: number) => `-${n * 0.25}rem`
+  const POS = (n: number) => `${n * 0.25}rem`
+  const out: string[] = []
+  const tokens = tw.split(/\s+/)
+  for (const t of tokens) {
+    const m = t.match(/^(-?)(\w+)-(-?\d+)$/)
+    if (!m) continue
+    const [, neg, side, num] = m
+    const px = parseInt(num)
+    const val = neg ? NEG(px) : POS(px)
+    if (side === 'top') out.push(`top:${val}`)
+    else if (side === 'bottom') out.push(`bottom:${val}`)
+    else if (side === 'left') out.push(`left:${val}`)
+    else if (side === 'right') out.push(`right:${val}`)
+  }
+  if (tw.includes('inset-0')) out.push('top:0;right:0;bottom:0;left:0')
+  return out.join(';')
+}
+
+function cssSize(tw: string): string {
+  const tokens = tw.split(/\s+/)
+  const out: string[] = []
+  for (const t of tokens) {
+    const m = t.match(/^(w|h)-(.+)$/)
+    if (!m) continue
+    const [, dim, val] = m
+    out.push(`${dim === 'w' ? 'width' : 'height'}:${twToSize(val)}`)
+  }
+  return out.join(';')
+}
+
+function twToSize(v: string): string {
+  if (v === 'full') return '100%'
+  if (v === 'screen') return '100vh'
+  const m = v.match(/^(\d+)$/)
+  if (!m) return 'auto'
+  return `${parseInt(m[1]) * 0.25}rem`
+}
+
+function cssColorFromClass(cls: string): string {
+  if (cls.includes('blue-400')) return '#60a5fa'
+  if (cls.includes('purple-400')) return '#c084fc'
+  if (cls.includes('pink-400')) return '#f472b6'
+  return '#60a5fa'
 }
 
 /** 保留的 Tailwind class */
@@ -48,7 +121,8 @@ function renderHero(c: Record<string, any>, s: Record<string, any>): string {
   const imageUrl = safeAssetUrl(c.imageUrl)
   const img = imageUrl ? `<div class="flex-1 flex justify-center"><img src="${esc(imageUrl)}" alt="Hero" class="max-w-full h-auto rounded-lg shadow-lg"></div>` : ''
   return `
-<section style="${boxStyle(s)}" class="${twClass(s)}">
+<section style="${boxStyle(s)}" class="${twClass(s)} ${animationClass(s)}">
+  ${decorationHtml(s)}
   <div class="max-w-6xl mx-auto px-4">
     <div class="flex flex-col md:flex-row items-center gap-8${c.alignment === 'center' ? ' text-center' : ''}">
       <div class="flex-1">
@@ -70,7 +144,8 @@ function renderFeatures(c: Record<string, any>, s: Record<string, any>): string 
       <p class="text-gray-600 text-sm">${esc(f.description || '')}</p>
     </div>`).join('')
   return `
-<section style="${boxStyle(s)}" class="${twClass(s)}">
+<section style="${boxStyle(s)}" class="${twClass(s)} ${animationClass(s)}">
+  ${decorationHtml(s)}
   <div class="max-w-6xl mx-auto px-4">
     <h2 class="font-bold mb-4" style="${titleStyle(s)}">${esc(c.title || '')}</h2>
     <p class="mb-12 max-w-2xl" style="${bodyStyle(s)}">${esc(c.subtitle || '')}</p>
@@ -93,7 +168,8 @@ function renderPricing(c: Record<string, any>, s: Record<string, any>): string {
     </div>`
   }).join('')
   return `
-<section style="${boxStyle(s)}" class="${twClass(s)}">
+<section style="${boxStyle(s)}" class="${twClass(s)} ${animationClass(s)}">
+  ${decorationHtml(s)}
   <div class="max-w-6xl mx-auto px-4">
     <h2 class="font-bold mb-4" style="${titleStyle(s)}">${esc(c.title || '')}</h2>
     <p class="mb-12 max-w-2xl" style="${bodyStyle(s)}">${esc(c.subtitle || '')}</p>
@@ -104,7 +180,8 @@ function renderPricing(c: Record<string, any>, s: Record<string, any>): string {
 
 function renderCTA(c: Record<string, any>, s: Record<string, any>): string {
   return `
-<section style="${boxStyle(s)}" class="${twClass(s)}">
+<section style="${boxStyle(s)}" class="${twClass(s)} ${animationClass(s)}">
+  ${decorationHtml(s)}
   <div class="max-w-4xl mx-auto px-4 text-center">
     <h2 class="font-bold mb-4" style="${titleStyle(s)}">${esc(c.title || '')}</h2>
     <p class="mb-8 opacity-90" style="${bodyStyle(s)}">${esc(c.subtitle || '')}</p>
@@ -126,7 +203,8 @@ function renderTestimonials(c: Record<string, any>, s: Record<string, any>): str
     </div>`
   }).join('')
   return `
-<section style="${boxStyle(s)}" class="${twClass(s)}">
+<section style="${boxStyle(s)}" class="${twClass(s)} ${animationClass(s)}">
+  ${decorationHtml(s)}
   <div class="max-w-6xl mx-auto px-4">
     <h2 class="font-bold mb-4" style="${titleStyle(s)}">${esc(c.title || '')}</h2>
     <p class="mb-12 max-w-2xl" style="${bodyStyle(s)}">${esc(c.subtitle || '')}</p>
@@ -142,7 +220,8 @@ function renderFaq(c: Record<string, any>, s: Record<string, any>): string {
       <p class="text-gray-600">${esc(f.answer || '')}</p>
     </div>`).join('')
   return `
-<section style="${boxStyle(s)}" class="${twClass(s)}">
+<section style="${boxStyle(s)}" class="${twClass(s)} ${animationClass(s)}">
+  ${decorationHtml(s)}
   <div class="max-w-4xl mx-auto px-4">
     <h2 class="font-bold mb-4" style="${titleStyle(s)}">${esc(c.title || '')}</h2>
     <p class="mb-12 opacity-80" style="${bodyStyle(s)}">${esc(c.subtitle || '')}</p>
@@ -154,7 +233,8 @@ function renderFaq(c: Record<string, any>, s: Record<string, any>): string {
 function renderFooter(c: Record<string, any>, s: Record<string, any>): string {
   const links = (c.links || []).map((l: any) => `<a href="${esc(safeLinkUrl(l.url))}" class="text-sm opacity-70 hover:opacity-100">${esc(l.title || '')}</a>`).join('')
   return `
-<footer style="${boxStyle(s)}" class="${twClass(s)}">
+<footer style="${boxStyle(s)}" class="${twClass(s)} ${animationClass(s)}">
+  ${decorationHtml(s)}
   <div class="max-w-6xl mx-auto px-4">
     <div class="flex flex-wrap justify-between gap-8 mb-8">
       <div class="max-w-xs"><h3 class="text-lg font-bold mb-3">${esc(c.companyName || '')}</h3><p class="text-sm opacity-70">${esc(c.description || '')}</p></div>
@@ -175,7 +255,8 @@ function renderRow(comp: PageComponent): string {
   ).join('')
   const alignItems = c.verticalAlign === 'top' ? 'start' : (c.verticalAlign || 'start')
   return `
-<section style="${boxStyle(s)}" class="${twClass(s)}">
+<section style="${boxStyle(s)}" class="${twClass(s)} ${animationClass(s)}">
+  ${decorationHtml(s)}
   <div class="max-w-6xl mx-auto px-4">
     <div class="grid grid-cols-1 md:grid-cols-${columns.length} gap-${c.gap || '8'}" style="align-items:${esc(alignItems)}">${colsHtml}</div>
   </div>
@@ -220,6 +301,12 @@ export function buildHTML(components: PageComponent[], pageSettings: PageSetting
       --pf-text: ${esc(pageSettings.textColor || '#111827')};
     }
     body { font-family: ${esc(pageSettings.fontFamily)}; background-color: ${esc(pageSettings.backgroundColor)}; color: var(--pf-text); }
+    @keyframes pf-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pf-slide-up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pf-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    .pf-fade-in { animation: pf-fade-in 0.6s ease-out both; }
+    .pf-slide-up { animation: pf-slide-up 0.6s ease-out both; }
+    .pf-float { animation: pf-float 3s ease-in-out infinite; }
   </style>
 </head>
 <body style="background-color:${esc(pageSettings.backgroundColor)}">

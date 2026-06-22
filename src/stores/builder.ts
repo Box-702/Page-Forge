@@ -32,6 +32,13 @@ export const useBuilderStore = defineStore('builder', () => {
   const showTemplateModal = ref(false)
   const showCheckPanel = ref(false)
   const showProjectModal = ref(false)
+  const showAISettingsModal = ref(false)
+  const showAIPageModal = ref(false)
+  const showAIRewriteModal = ref(false)
+  const showAIImageModal = ref(false)
+  const showAgentPanel = ref(false)
+  const aiRewriteTargetId = ref<string | null>(null)
+  const aiImageTargetField = ref<'imageUrl' | 'bgImage' | null>(null)
   const rowInsertTarget = ref<{ rowId: string; columnId: string } | null>(null)
   const sidebarTab = ref<'content' | 'style' | 'page'>('content')
 
@@ -80,6 +87,67 @@ export const useBuilderStore = defineStore('builder', () => {
       const clone = cloneComponentWithNewIds(comp)
       components.value.push(clone)
     }
+  }
+
+  // ========== Agent 提议(三步:preview → user confirm → commit) ==========
+
+  const pendingAgentEdit = ref<{
+    rationale: string
+    replaceExisting: boolean
+    blocks: PageComponent[]
+  } | null>(null)
+
+  /**
+   * Agent 提议修改:暂存 pending,不直接写入。
+   * 调用方应在 UI 显示"应用?"按钮,用户确认后调 commitAgentEdit。
+   */
+  function previewAgentEdit(payload: { rationale: string; replaceExisting: boolean; blocks: any[] }) {
+    pendingAgentEdit.value = {
+      rationale: payload.rationale || '',
+      replaceExisting: !!payload.replaceExisting,
+      blocks: (payload.blocks || []).map((b: any) => ({
+        id: b.id || crypto.randomUUID(),
+        type: b.type,
+        content: b.content || {},
+        styles: b.styles || {},
+      })) as PageComponent[],
+    }
+  }
+
+  /**
+   * 确认应用 agent 提议。会先 pushSnapshot(支持 Ctrl+Z 撤销),然后写入。
+   */
+  function commitAgentEdit(): boolean {
+    const edit = pendingAgentEdit.value
+    if (!edit) return false
+    saveHistory()
+    if (edit.replaceExisting) {
+      components.value = edit.blocks
+    } else {
+      components.value = [...components.value, ...edit.blocks]
+    }
+    pendingAgentEdit.value = null
+    return true
+  }
+
+  function discardAgentEdit() {
+    pendingAgentEdit.value = null
+  }
+
+  /**
+   * 应用 A/B 变体(用户已点 "使用此变体",不再需要三步确认)。
+   * 等价于 commitAgentEdit(replaceExisting: true)。
+   */
+  function applyVariant(payload: { name: string; rationale: string; pageSettings: any; components: any[] }): boolean {
+    saveHistory()
+    components.value = (payload.components || []).map((b: any) => ({
+      id: b.id || crypto.randomUUID(),
+      type: b.type,
+      content: b.content || {},
+      styles: b.styles || {},
+    })) as PageComponent[]
+    updatePageSettings(payload.pageSettings || {})
+    return true
   }
 
   // ========== 历史操作 ==========
@@ -131,10 +199,12 @@ export const useBuilderStore = defineStore('builder', () => {
   return {
     components, pageSettings, selectedId, hoveredId,
     history, historyIndex, MAX_HISTORY,
-    isPreview, previewMode, showAddModal, showTemplateModal, showCheckPanel, showProjectModal, rowInsertTarget, sidebarTab,
+    isPreview, previewMode, showAddModal, showTemplateModal, showCheckPanel, showProjectModal, showAISettingsModal, showAIPageModal, showAIRewriteModal, showAIImageModal, showAgentPanel, aiRewriteTargetId, aiImageTargetField, rowInsertTarget, sidebarTab,
     selectedComponent, canUndo, canRedo,
     selectComponent, addComponent, updateComponent, removeComponent,
     duplicateComponent, reorderComponents, updatePageSettings,
+    pendingAgentEdit, previewAgentEdit, commitAgentEdit, discardAgentEdit,
+    applyVariant,
     saveHistory, undo, redo,
     loadFromStorage, replaceProject,
   }

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 import type { PageComponent, RowColumn } from '@/types'
 import { useBuilderStore } from '@/stores/builder'
 import { useBuilder } from '@/composables/useBuilder'
 import { getRowColumns, normalizeRowComponent } from '@/utils/rowColumns'
+import { useBlockStyle, animationClass } from '@/composables/useBlockStyle'
 import ComponentWrapper from '../builder/ComponentWrapper.vue'
+import BlockDecoration from '../builder/BlockDecoration.vue'
 import Sortable from 'sortablejs'
 
 const props = defineProps<{ component: PageComponent }>()
@@ -12,6 +14,8 @@ const store = useBuilderStore()
 const { pushSnapshot } = useBuilder()
 const s = computed(() => props.component.styles)
 const c = computed(() => props.component.content)
+const boxStyle = useBlockStyle(toRef(props, 'component'))
+const animClass = computed(() => animationClass(s.value.animation))
 const columns = computed(() => getRowColumns(normalizeRowComponent(props.component)))
 const alignItems = computed(() => c.value.verticalAlign === 'top' ? 'start' : (c.value.verticalAlign || 'start'))
 const colRefs = ref<(HTMLElement | null)[]>([])
@@ -71,23 +75,11 @@ function setRef(el: any, index: number) {
 onMounted(() => initSortable())
 onUnmounted(() => destroySortable())
 watch(() => columns.value.length, () => nextTick(initSortable))
-
-const boxStyle = computed(() => ({
-  backgroundColor: s.value.bgColor || undefined,
-  color: s.value.textColor || undefined,
-  paddingTop: s.value.paddingTop || undefined,
-  paddingBottom: s.value.paddingBottom || undefined,
-  paddingLeft: s.value.paddingLeft || undefined,
-  paddingRight: s.value.paddingRight || undefined,
-  backgroundImage: s.value.bgImage ? `url(${s.value.bgImage})` : undefined,
-  backgroundSize: s.value.bgImage ? 'cover' : undefined,
-  backgroundPosition: s.value.bgImage ? 'center' : undefined,
-  borderRadius: s.value.borderRadius || undefined,
-}))
 </script>
 
 <template>
-  <section :style="boxStyle" :class="[s.textAlign, s.shadow, s.maxWidth]">
+  <section :style="boxStyle" :class="[s.textAlign, s.shadow, s.maxWidth, animClass]">
+    <BlockDecoration :variant="s.decoration" />
     <div class="mx-auto max-w-6xl px-4">
       <div
         :class="['grid grid-cols-1', `md:grid-cols-${columns.length}`, `gap-${c.gap || '8'}`]"

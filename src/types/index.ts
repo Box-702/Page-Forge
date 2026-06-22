@@ -1,5 +1,18 @@
 export type BlockType = 'hero' | 'features' | 'pricing' | 'cta' | 'testimonials' | 'faq' | 'footer' | 'row'
 
+export type DecorationVariant =
+  | 'none'
+  | 'blob-tl' | 'blob-tr' | 'blob-bl' | 'blob-br'
+  | 'glow-tl' | 'glow-br'
+  | 'wave-top' | 'wave-bottom'
+  | 'mesh-soft' | 'mesh-bold'
+  | 'noise-fine' | 'noise-coarse'
+  | 'squiggle-tl' | 'squiggle-br'
+
+export type AnimationKind = 'none' | 'fade-in' | 'slide-up' | 'float'
+
+export type BackgroundPattern = 'none' | 'dots' | 'grid'
+
 export interface ComponentStyles {
   bgColor?: string
   textColor?: string
@@ -14,6 +27,12 @@ export interface ComponentStyles {
   shadow?: string
   textAlign?: string
   maxWidth?: string
+  bgGradient?: string
+  bgOverlay?: string
+  bgPattern?: BackgroundPattern
+  bgAttachment?: 'scroll' | 'fixed'
+  decoration?: DecorationVariant
+  animation?: AnimationKind
 }
 
 export interface PageComponent {
