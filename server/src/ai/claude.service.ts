@@ -75,16 +75,11 @@ export class ClaudeService {
         messages: dto.messages as any,
         tools: dto.tools as any,
         tool_choice: dto.tool_choice as any,
+        signal: dto.signal,
       })
     } catch (err) {
       this.logger.error('Failed to open Anthropic stream', err)
       throw new ServiceUnavailableException(`Anthropic stream error: ${(err as Error).message}`)
-    }
-
-    if (dto.signal) {
-      dto.signal.addEventListener('abort', () => {
-        try { (stream as any).controller?.abort?.() } catch { /* ignore */ }
-      })
     }
 
     try {

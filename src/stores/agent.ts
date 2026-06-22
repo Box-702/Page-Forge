@@ -29,22 +29,16 @@ export const useAgentStore = defineStore('agent', () => {
   const messages = shallowRef<AgentMessage[]>([])
   const isStreaming = ref(false)
   const error = ref<string | null>(null)
-  const lastToolCalls = shallowRef<AgentToolCall[]>([])
   const sessionExpired = ref(false)
-  const pendingEdits = ref<{ rationale: string; replaceExisting: boolean; blocks: any[] } | null>(null)
   /** M5: 当前附加的文档(MD/TXT),作为后续 3-5 轮 context */
   const documentName = ref<string | null>(null)
   const documentText = ref<string | null>(null)
-  /** 标记 agent 正在响应某条触发(比如用户点 AI 改写按钮) */
-  const busyReason = ref<string | null>(null)
 
   function reset() {
     messages.value = []
     sessionId.value = null
     error.value = null
-    lastToolCalls.value = []
     sessionExpired.value = false
-    pendingEdits.value = null
     documentName.value = null
     documentText.value = null
   }
@@ -76,12 +70,9 @@ export const useAgentStore = defineStore('agent', () => {
     messages,
     isStreaming,
     error,
-    lastToolCalls,
     sessionExpired,
-    pendingEdits,
     documentName,
     documentText,
-    busyReason,
     reset,
     pushUser,
     startAssistant,

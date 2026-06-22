@@ -1,6 +1,6 @@
 export interface ClaudeMessage {
   role: 'user' | 'assistant'
-  content: string
+  content: string | any[]
 }
 
 export interface ClaudeTool {

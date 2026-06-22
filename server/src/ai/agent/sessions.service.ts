@@ -63,7 +63,7 @@ export class SessionsService {
 
   /**
    * 如果消息数超过阈值,把前面 N 条压成一条摘要 + 删除。
-   * v1:简单丢弃 + 标记(真摘要要再调 Claude,留给后续)
+   * 维护 user/assistant 交替:摘要作为 assistant 消息插入。
    */
   maybeCompact(id: string): { compacted: boolean; droppedCount: number } {
     const session = this.require(id)
@@ -75,10 +75,11 @@ export class SessionsService {
     const summary = summarizeLocally(dropped, session.rollingSummary)
     session.rollingSummary = summary
 
+    // Insert as assistant message (maintains alternation with next user message)
     session.messages.unshift({
-      role: 'user',
+      role: 'assistant',
       content: `[对话历史摘要]\n${summary}\n\n(以下为近 ${MAX_VERBATIM_MESSAGES} 轮对话原文)`,
-    })
+    } as any)
     return { compacted: true, droppedCount: toDrop }
   }
 

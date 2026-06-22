@@ -35,15 +35,19 @@ export function useAgentTurn() {
 
   const abortCtrl = ref<AbortController | null>(null)
   const isStreaming = computed(() => agent.isStreaming)
+  /** Generation counter prevents stale finally-block from applying data after rapid abort→send */
+  let generation = 0
 
   async function send(userMessage: string, docContext?: string) {
     if (!userMessage.trim() || agent.isStreaming) return
     agent.error = null
-    agent.lastToolCalls = []
     agent.sessionExpired = false
 
     agent.pushUser(userMessage)
     agent.isStreaming = true
+
+    generation++
+    const myGeneration = generation
 
     const ctrl = new AbortController()
     abortCtrl.value = ctrl
@@ -88,30 +92,38 @@ export function useAgentTurn() {
           const frame = buf.slice(0, idx)
           buf = buf.slice(idx + 2)
           const evt = parseFrame(frame)
-          if (!evt) continue
-          handleEvent(evt)
+          if (evt) handleEvent(evt, myGeneration)
         }
+      }
+
+      // Flush trailing frame (stream may end without trailing \n\n)
+      if (buf.trim()) {
+        const evt = parseFrame(buf)
+        if (evt) handleEvent(evt, myGeneration)
       }
     } catch (e) {
       if ((e as Error).name === 'AbortError') {
-        // user cancelled
+        // user cancelled — don't set error
       } else {
         agent.error = (e as Error).message
       }
     } finally {
-      agent.isStreaming = false
-      agent.finishAssistant(assistantId, accumulatedToolCalls)
-      // 工具提议落库后,弹给用户预览
-      if (generatedBlocks.length > 0) {
-        builder.previewAgentEdit({
-          rationale: lastRationale,
-          replaceExisting,
-          blocks: generatedBlocks,
-        })
+      // Only apply state if this is still the active generation
+      if (myGeneration === generation) {
+        agent.isStreaming = false
+        agent.finishAssistant(assistantId, accumulatedToolCalls)
+        if (generatedBlocks.length > 0) {
+          builder.previewAgentEdit({
+            rationale: lastRationale,
+            replaceExisting,
+            blocks: generatedBlocks,
+          })
+        }
       }
     }
 
-    function handleEvent(evt: any) {
+    function handleEvent(evt: any, gen: number) {
+      if (gen !== generation) return // stale generation — discard
       const t = evt.type
       if (t === 'session') {
         agent.sessionId = evt.sessionId
@@ -119,6 +131,9 @@ export function useAgentTurn() {
         try { localStorage.setItem('page-forge-agent-session', evt.sessionId) } catch { /* */ }
       } else if (t === 'session_expired') {
         agent.sessionExpired = true
+        // Auto-create new session — the backend already does this, but we clear local state
+        agent.messages = []
+        agent.pushUser(`[会话已过期,自动新建]`)
       } else if (t === 'text_delta' && evt.text) {
         agent.appendAssistantDelta(assistantId, evt.text)
       } else if (t === 'tool_call') {
@@ -133,7 +148,6 @@ export function useAgentTurn() {
           generatedBlocks = Array.isArray(evt.input.blocks) ? evt.input.blocks : []
         }
       } else if (t === 'tool_result' && !evt.ok) {
-        // tool 执行失败,append 一条说明
         agent.appendAssistantDelta(
           assistantId,
           `\n\n[工具 ${evt.toolName} 执行失败: ${evt.error ?? '未知错误'}]`,
@@ -154,6 +168,7 @@ export function useAgentTurn() {
       abortCtrl.value.abort()
       abortCtrl.value = null
     }
+    generation++ // invalidate any in-flight handleEvent
     agent.isStreaming = false
   }
 

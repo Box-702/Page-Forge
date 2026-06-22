@@ -23,7 +23,7 @@ const c = computed(() => props.component.content as {
     <BlockDecoration :variant="s.decoration" />
     <div class="max-w-4xl mx-auto px-4">
       <InlineText
-        tag="h1"
+        tag="h2"
         class="font-bold mb-4"
         :style="{ fontSize: s.titleFontSize || '36px' }"
         :model-value="c.title"

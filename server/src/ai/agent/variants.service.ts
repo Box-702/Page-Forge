@@ -196,6 +196,21 @@ function buildPlaceholderBlock(type: string, id: string, title: string, primary:
           ],
         }, styles: { bgColor: '#111827', textColor: '#ffffff' },
       }
+    case 'row': {
+      const colA = buildPlaceholderBlock('cta', `col${id}_1`, '', primary, brief)
+      const colB = buildPlaceholderBlock('faq', `col${id}_2`, '', primary, brief)
+      return {
+        id, type, content: {
+          columnCount: 2,
+          columns: [
+            { id: `col${id}_1`, width: '50%', children: [colA] },
+            { id: `col${id}_2`, width: '50%', children: [colB] },
+          ],
+          gap: '8',
+          verticalAlign: 'start',
+        }, styles: {},
+      }
+    }
     default:
       return {
         id, type, content: { title, description: brief }, styles: {},

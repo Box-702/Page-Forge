@@ -159,18 +159,9 @@ export class DiagnosticsService {
         autoFixable: true,
       })
     }
-    const faqBlocks = components.filter((c) => c.type === 'faq')
-    for (const f of faqBlocks) {
-      issues.push({
-        severity: 'medium',
-        category: 'heading',
-        blockId: f.id,
-        blockType: 'faq',
-        message: 'FAQ block 的标题目前用 H1,应该改为 H2(页面只能有一个 H1)。',
-        fix: '将 FAQ 标题标签从 H1 改为 H2',
-        autoFixable: false,
-      })
-    }
+    // No more FAQ H1 false positive: FaqBlock uses h2 after fix.
+    // Diagnostics should only flag if a block type is known to use h1 incorrectly.
+    // With the FaqBlock h1→h2 fix, this check is no longer needed.
   }
 
   private checkImages(components: Array<{ id: string; type: string; content?: any; styles?: any }>, issues: DiagnosticIssue[]) {

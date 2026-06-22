@@ -3,7 +3,7 @@ import { ClaudeService } from '../claude.service'
 import { SessionsService, type AgentSession } from './sessions.service'
 import { buildAgentSystem, type AgentContext } from './prompts/agent.system'
 import { TOOL_REGISTRY, executeGenerateBlocks, type ToolResult } from './tools/generateBlocks'
-import type { ClaudeMessage, ClaudeProxyDto } from '../ai.dto'
+import type { ClaudeProxyDto } from '../ai.dto'
 
 export interface AgentTurnRequest {
   sessionId?: string
@@ -20,6 +20,9 @@ interface LoopEvent {
   [key: string]: any
 }
 
+/** Anthropic-compatible message (content can be string or content-block array). */
+type Msg = { role: 'user' | 'assistant'; content: string | any[] }
+
 @Injectable()
 export class AgentService {
   private readonly logger = new Logger(AgentService.name)
@@ -29,16 +32,6 @@ export class AgentService {
     private readonly sessions: SessionsService,
   ) {}
 
-  /**
-   * 多步 agent loop。yield 给 controller 一个一个 emit 到 SSE。
-   *
-   * 流程:
-   *   1. 拿到/创建 session,把 userMessage 追加
-   *   2. 调 Claude,stream 收集 events
-   *   3. 若 Claude 调了 tool:execute,tool_result 喂回,继续 iter
-   *   4. 若 Claude 没调 tool(给了 final text)→ 写入 session,退出 loop
-   *   5. iter >= MAX_ITERATIONS → 强制退出
-   */
   async *runTurn(req: AgentTurnRequest, signal?: AbortSignal): AsyncGenerator<LoopEvent> {
     let session: AgentSession
     if (req.sessionId && this.sessions.has(req.sessionId)) {
@@ -52,7 +45,7 @@ export class AgentService {
 
     yield { type: 'session', sessionId: session.id, messageCount: session.messages.length }
 
-    session.messages.push({ role: 'user', content: req.userMessage })
+    session.messages.push({ role: 'user', content: req.userMessage } as Msg)
     session.updatedAt = Date.now()
 
     const ctx: AgentContext = {
@@ -70,7 +63,7 @@ export class AgentService {
         model: 'claude-sonnet-4-6',
         maxTokens: MAX_TOKENS_PER_TURN,
         system,
-        messages: session.messages,
+        messages: session.messages as any,
         tools: TOOL_REGISTRY as any,
       }
 
@@ -101,51 +94,46 @@ export class AgentService {
         return
       }
 
-      // 把这一轮的 assistant 消息存到 session(用 SDK 风格的 content block 表达)
       if (toolUseBlocks.length === 0) {
-        session.messages.push({ role: 'assistant', content: finalText || '(空回复)' })
+        session.messages.push({ role: 'assistant', content: finalText || '(空回复)' } as Msg)
         break
       }
 
-      // 构造 assistant 消息(含 tool_use)和对应的 tool_result user 消息
-      const assistantContent = buildAssistantContent(finalText, toolUseBlocks)
-      session.messages.push({ role: 'assistant', content: assistantContent as any })
+      // Store assistant message as proper content-block array
+      const assistantContent: any[] = []
+      if (finalText) assistantContent.push({ type: 'text', text: finalText })
+      for (const t of toolUseBlocks) {
+        assistantContent.push({ type: 'tool_use', id: t.id, name: t.name, input: t.input })
+      }
+      session.messages.push({ role: 'assistant', content: assistantContent } as Msg)
 
-      // 执行所有 tool_use,并行
+      // Execute tools
       const toolResults: ToolResult[] = await Promise.all(
         toolUseBlocks.map((t) => this.executeTool(t.name, t.input)),
       )
 
-      // 把 tool_result 喂回给 Claude
-      const toolResultContent = buildToolResultContent(toolUseBlocks, toolResults)
-      session.messages.push({ role: 'user', content: toolResultContent as any })
+      // Build tool_result content blocks
+      const toolResultBlocks = toolUseBlocks.map((t, i) => {
+        const r = toolResults[i]
+        const resultText = r.ok
+          ? JSON.stringify(r.data).slice(0, 4000)
+          : `Error: ${r.error ?? '未知错误'}`
+        return { type: 'tool_result', tool_use_id: t.id, content: resultText }
+      })
+      session.messages.push({ role: 'user', content: toolResultBlocks } as Msg)
 
-      // 通知前端 agent 提议了什么(等用户确认 / 自动进下一轮)
+      // Yield results to frontend
       for (const r of toolResults) {
         if (r.ok) {
-          yield {
-            type: 'tool_result',
-            toolName: r.toolName,
-            ok: true,
-            data: r.data,
-          }
+          yield { type: 'tool_result', toolName: r.toolName, ok: true, data: r.data }
         } else {
-          yield {
-            type: 'tool_result',
-            toolName: r.toolName,
-            ok: false,
-            error: r.error,
-          }
+          yield { type: 'tool_result', toolName: r.toolName, ok: false, error: r.error }
         }
       }
 
-      // 滚动压缩(若有需要)
       const compactResult = this.sessions.maybeCompact(session.id)
       if (compactResult.compacted) {
-        yield {
-          type: 'context_compacted',
-          droppedCount: compactResult.droppedCount,
-        }
+        yield { type: 'context_compacted', droppedCount: compactResult.droppedCount }
       }
     }
 
@@ -162,32 +150,4 @@ export class AgentService {
     }
     return { toolName: name, ok: false, error: `未知工具: ${name}` }
   }
-}
-
-/**
- * 构造 SDK 风格的 assistant 消息: text + tool_use blocks。
- * v1 简化版:tool_use 不带完整 input JSON 序列化,我们只用 stored as plain text for now,
- * 因为下轮 Claude 只需要看到完整的 tool_use + tool_result 配对。
- */
-function buildAssistantContent(text: string, toolUses: Array<{ id: string; name: string; input: any }>): string {
-  const lines: string[] = []
-  if (text) lines.push(text)
-  for (const t of toolUses) {
-    lines.push(`[tool_use] id=${t.id} name=${t.name} input=${JSON.stringify(t.input)}`)
-  }
-  return lines.join('\n')
-}
-
-function buildToolResultContent(
-  toolUses: Array<{ id: string; name: string; input: any }>,
-  results: ToolResult[],
-): string {
-  const blocks = toolUses.map((t, i) => {
-    const r = results[i]
-    const payload = r.ok
-      ? `OK ${JSON.stringify(r.data).slice(0, 800)}`
-      : `ERROR ${r.error ?? '未知错误'}`
-    return `[tool_result] id=${t.id} ${payload}`
-  })
-  return blocks.join('\n')
 }

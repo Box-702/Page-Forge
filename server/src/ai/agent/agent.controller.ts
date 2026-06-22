@@ -85,17 +85,17 @@ export class AgentController {
   }
 
   @Get('session')
-  getSession(@Query('id') id: string) {
-    if (!id) return { ok: false, error: 'missing id' }
+  getSession(@Query('id') id: string, @Res() res: any) {
+    if (!id) return res.json({ ok: false, error: 'missing id' })
     const s = this.sessions.get(id)
-    if (!s) return { ok: false, status: 410, error: 'session not found' }
-    return {
+    if (!s) return res.status(410).json({ ok: false, status: 410, error: 'session not found' })
+    return res.json({
       ok: true,
       sessionId: s.id,
       messageCount: s.messages.length,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
-    }
+    })
   }
 
   @Post('session/new')

@@ -147,6 +147,7 @@ export const useBuilderStore = defineStore('builder', () => {
       styles: b.styles || {},
     })) as PageComponent[]
     updatePageSettings(payload.pageSettings || {})
+    pendingAgentEdit.value = null // Clear any stale pending edit
     return true
   }
 
